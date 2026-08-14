@@ -1,0 +1,31 @@
+name: Daily LeetCode Journey Post
+
+on:
+  schedule:
+    # Runs at 15:05 UTC, which is 00:05 the next day in KST (UTC+9).
+    # GitHub Actions cron is always UTC — adjust if you're ever in a
+    # different timezone or DST changes your offset.
+    - cron: "5 15 * * *"
+  workflow_dispatch: {}  # lets you trigger it manually from the Actions tab to test
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Post day count to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          START_DATE: ${{ secrets.START_DATE }}
+        run: python post_day.py
