@@ -18,6 +18,8 @@ from datetime import date, datetime
 
 import requests
 
+STATE_FILE = "last_posted_day.txt"
+
 
 def get_env(name: str, required: bool = True, default: str | None = None) -> str:
     value = os.environ.get(name, default)
@@ -29,6 +31,21 @@ def get_env(name: str, required: bool = True, default: str | None = None) -> str
 
 def compute_day_number(start_date: date, today: date) -> int:
     return (today - start_date).days + 1
+
+
+def read_last_posted_day() -> int | None:
+    if not os.path.exists(STATE_FILE):
+        return None
+    try:
+        with open(STATE_FILE, "r") as f:
+            return int(f.read().strip())
+    except (ValueError, OSError):
+        return None
+
+
+def write_last_posted_day(day_number: int) -> None:
+    with open(STATE_FILE, "w") as f:
+        f.write(str(day_number))
 
 
 def main() -> None:
@@ -50,6 +67,11 @@ def main() -> None:
         print(f"START_DATE ({start_date}) is in the future relative to today ({today}); nothing to post yet.")
         sys.exit(0)
 
+    last_posted = read_last_posted_day()
+    if last_posted is not None and day_number <= last_posted:
+        print(f"Day {day_number} was already posted (last posted: {last_posted}). Skipping to avoid a duplicate.")
+        sys.exit(0)
+
     message = f"{day_number} / {total_days}"
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -59,6 +81,7 @@ def main() -> None:
         print(f"Telegram API error ({response.status_code}): {response.text}", file=sys.stderr)
         sys.exit(1)
 
+    write_last_posted_day(day_number)
     print(f"Posted '{message}' to {channel_id} successfully.")
 
 
