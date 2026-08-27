@@ -2,11 +2,20 @@ name: Daily LeetCode Journey Post
 
 on:
   schedule:
-    # Runs at 15:05 UTC, which is 00:05 the next day in KST (UTC+9).
-    # GitHub Actions cron is always UTC — adjust if you're ever in a
-    # different timezone or DST changes your offset.
-    - cron: "5 15 * * *"
+    # Primary run: ~15:22 UTC = ~00:22 KST (UTC+9). Off a round minute on
+    # purpose — GitHub's own docs warn that schedules near the top of the
+    # hour see more delay/congestion.
+    - cron: "22 15 * * *"
+    # Backup run: same UTC calendar day, ~5.5 hours later (~05:52 KST).
+    # If the primary run gets skipped (GitHub scheduled runs are
+    # best-effort, not guaranteed), this catches it. If the primary
+    # already succeeded, post_day.py's own duplicate check makes this a
+    # harmless no-op.
+    - cron: "52 20 * * *"
   workflow_dispatch: {}  # lets you trigger it manually from the Actions tab to test
+
+permissions:
+  contents: write  # needed so the workflow can commit the "already posted" state file
 
 jobs:
   post:
@@ -29,3 +38,16 @@ jobs:
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
           START_DATE: ${{ secrets.START_DATE }}
         run: python post_day.py
+
+      - name: Save "already posted" state
+        run: |
+          if [ -n "$(git status --porcelain last_posted_day.txt)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add last_posted_day.txt
+            git commit -m "Record last posted day [skip ci]"
+            git push
+          else
+            echo "No new day posted, nothing to commit."
+          fi
+  
